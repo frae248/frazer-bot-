@@ -1,0 +1,36 @@
+const {
+  default: makeWASocket,
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion
+} = require("@whiskeysockets/baileys");
+
+module.exports = async function startBot(sessionId, onUpdate) {
+  const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${sessionId}`);
+  const { version } = await fetchLatestBaileysVersion();
+
+  const sock = makeWASocket({
+    version,
+    auth: state,
+    browser: ["FrazerSaaS", "Chrome", "1.0"]
+  });
+
+  sock.ev.on("creds.update", saveCreds);
+
+  sock.ev.on("connection.update", (update) => {
+    const { connection } = update;
+
+    if (update.pairingCode) {
+      onUpdate({ type: "code", code: update.pairingCode });
+    }
+
+    if (connection === "open") {
+      onUpdate({ type: "connected" });
+    }
+
+    if (connection === "close") {
+      onUpdate({ type: "closed" });
+    }
+  });
+
+  return sock;
+};
